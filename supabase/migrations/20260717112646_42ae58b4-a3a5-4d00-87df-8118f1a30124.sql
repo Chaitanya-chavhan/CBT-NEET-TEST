@@ -1,0 +1,1 @@
+ALTER TABLE public.test_series ADD COLUMN IF NOT EXISTS planner_pdf_url text;
