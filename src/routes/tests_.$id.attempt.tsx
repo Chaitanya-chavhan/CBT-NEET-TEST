@@ -23,6 +23,8 @@ function Attempt() {
   const [started, setStarted] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const answersRef = useRef(answers);
@@ -163,26 +165,26 @@ function Attempt() {
       {!reviewMode && (
         <div className="px-4 py-3 grid grid-cols-2 gap-2">
           <button
-            onClick={() => { if (confirm("Leave the test? Your progress will be lost.")) window.history.back(); }}
-            className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm font-semibold text-destructive inline-flex items-center justify-center gap-1"
+            onClick={() => setShowLeaveConfirm(true)}
+            className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm font-semibold text-destructive inline-flex items-center justify-center gap-1 hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="h-4 w-4" /> Leave Test
           </button>
           <button
             onClick={() => setShowGrid(true)}
-            className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white inline-flex items-center justify-center gap-1"
+            className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white inline-flex items-center justify-center gap-1 hover:bg-teal-700 transition-colors"
           >
             <Grid3x3 className="h-4 w-4" /> Question Grid
           </button>
           <button
             onClick={() => setShowInstructions(true)}
-            className="rounded-lg border px-3 py-2 text-sm font-medium inline-flex items-center justify-center gap-1 hover:bg-muted"
+            className="rounded-lg border px-3 py-2 text-sm font-medium inline-flex items-center justify-center gap-1 hover:bg-muted transition-colors"
           >
             <FileText className="h-4 w-4" /> Instructions
           </button>
           <button
-            onClick={() => { if (confirm("Submit the test?")) doSubmit(); }}
-            className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
+            onClick={() => setShowSubmitConfirm(true)}
+            className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Submit Test
           </button>
@@ -446,6 +448,40 @@ function Attempt() {
                 Re-attempt
               </button>
               <Link to="/tests" className="rounded-lg border px-4 py-2.5 text-center text-sm font-semibold hover:bg-muted">Close</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Confirm Modal */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 animate-in fade-in duration-200" onClick={() => setShowLeaveConfirm(false)}>
+          <div className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-xl text-center animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <LogOut className="h-6 w-6 text-destructive" />
+            </div>
+            <h3 className="text-lg font-bold">Leave Test?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Your progress will be lost and you'll have to start over. Are you sure you want to leave?</p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button onClick={() => setShowLeaveConfirm(false)} className="rounded-xl border px-4 py-2.5 text-sm font-semibold hover:bg-muted transition-colors">Cancel</button>
+              <button onClick={() => window.history.back()} className="rounded-xl bg-destructive px-4 py-2.5 text-sm font-semibold text-white hover:bg-destructive/90 transition-colors shadow-sm shadow-destructive/20">Yes, Leave</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Confirm Modal */}
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 animate-in fade-in duration-200" onClick={() => setShowSubmitConfirm(false)}>
+          <div className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-xl text-center animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle2 className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold">Submit Test?</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Are you sure you want to submit your test? You won't be able to change your answers after this.</p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button onClick={() => setShowSubmitConfirm(false)} className="rounded-xl border px-4 py-2.5 text-sm font-semibold hover:bg-muted transition-colors">Review</button>
+              <button onClick={() => { setShowSubmitConfirm(false); doSubmit(); }} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm shadow-primary/20">Submit Now</button>
             </div>
           </div>
         </div>
