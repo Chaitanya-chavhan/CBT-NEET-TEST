@@ -29,6 +29,7 @@ function SeriesEditor() {
   const [form, setForm] = useState<SeriesForm | null>(null);
   const [newTest, setNewTest] = useState<NewTest | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   const s = sQ.data;
 
@@ -120,19 +121,29 @@ function SeriesEditor() {
       </div>
 
       {/* Planner PDF */}
-      <div className="mt-5 rounded-xl border bg-card p-5 shadow-sm">
+      <div 
+        className={`mt-5 rounded-xl border p-5 shadow-sm transition-colors ${dragActive ? 'border-primary bg-primary/5' : 'bg-card'}`}
+        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragActive(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) onPickPlanner(f);
+        }}
+      >
         <h2 className="text-lg font-bold inline-flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary" /> Study Planner (PDF)
         </h2>
-        <p className="mt-1 text-xs text-muted-foreground">Upload a study planner PDF. Students will see a "Planner" button on the series card.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Upload a study planner PDF. Students will see a "Planner" button on the series card. You can also drag and drop a file here.</p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+          <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
             {uploading ? "Uploading..." : (s.planner_pdf_url ? "Replace PDF" : "Upload PDF")}
             <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onPickPlanner(f); e.target.value = ""; }} />
           </label>
           {s.planner_pdf_url && (
-            <button onClick={openPlanner} className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm hover:bg-muted">
+            <button onClick={openPlanner} className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm hover:bg-muted transition-colors">
               <ExternalLink className="h-4 w-4" /> View current
             </button>
           )}
