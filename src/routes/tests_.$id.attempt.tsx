@@ -330,46 +330,52 @@ function Attempt() {
 
       {/* Grid overlay */}
       {showGrid && (
-        <div className="fixed inset-0 z-40 grid place-items-end sm:place-items-center bg-black/40 p-4" onClick={() => setShowGrid(false)}>
-          <div className="w-full max-w-md rounded-2xl border bg-card p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-40 grid place-items-end sm:place-items-center bg-black/40 p-2 sm:p-4" onClick={() => setShowGrid(false)}>
+          <div className="w-full max-w-md max-h-[85vh] flex flex-col rounded-2xl border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b shrink-0">
               <h3 className="font-bold">Question Grid</h3>
-              <button onClick={() => setShowGrid(false)}><X className="h-5 w-5 text-muted-foreground" /></button>
+              <button onClick={() => setShowGrid(false)} className="rounded-full p-1 hover:bg-muted"><X className="h-5 w-5 text-muted-foreground" /></button>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              {showResultBadge ? (
-                <>
-                  <span className="rounded bg-success/20 border border-success/40 px-2 py-0.5 text-success">Correct</span>
-                  <span className="rounded bg-destructive/20 border border-destructive/40 px-2 py-0.5 text-destructive">Wrong</span>
-                  <span className="rounded bg-muted border px-2 py-0.5 text-muted-foreground">Skipped</span>
-                </>
-              ) : (
-                <>
-                  <span className="rounded bg-primary/20 border border-primary/40 px-2 py-0.5 text-primary">Current</span>
-                  <span className="rounded bg-success/20 border border-success/40 px-2 py-0.5 text-success">Answered</span>
-                  <span className="rounded bg-warning/20 border border-warning/40 px-2 py-0.5 text-warning-foreground">Marked</span>
-                  <span className="rounded bg-muted border px-2 py-0.5 text-muted-foreground">Not visited</span>
-                </>
-              )}
-            </div>
-            <div className="mt-4 grid grid-cols-6 gap-2">
-              {questions.map((qq, i) => {
-                const a = answers[qq.id];
-                let cls = "bg-muted border-border text-muted-foreground";
-                if (showResultBadge) {
-                  if (!a?.option) cls = "bg-muted border-border text-muted-foreground";
-                  else if (a.option === qq.correct_option) cls = "bg-success text-success-foreground border-success";
-                  else cls = "bg-destructive text-white border-destructive";
-                } else {
-                  if (a?.marked) cls = "bg-warning text-warning-foreground border-warning";
-                  else if (a?.option) cls = "bg-success text-success-foreground border-success";
-                  else if (a?.visited) cls = "bg-destructive/20 border-destructive text-destructive";
-                }
-                if (i === current) cls += " ring-2 ring-primary ring-offset-1";
-                return (
-                  <button key={qq.id} onClick={() => { setCurrent(i); setShowGrid(false); }} className={`aspect-square rounded-md border text-sm font-semibold ${cls}`}>{i + 1}</button>
-                );
-              })}
+            
+            <div className="p-4 sm:p-5 overflow-y-auto">
+              <div className="flex flex-wrap gap-2 text-xs mb-4">
+                {showResultBadge ? (
+                  <>
+                    <span className="rounded bg-success/20 border border-success/40 px-2 py-0.5 text-success">Correct</span>
+                    <span className="rounded bg-destructive/20 border border-destructive/40 px-2 py-0.5 text-destructive">Wrong</span>
+                    <span className="rounded bg-muted border px-2 py-0.5 text-muted-foreground">Skipped</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="rounded bg-primary/20 border border-primary/40 px-2 py-0.5 text-primary">Current</span>
+                    <span className="rounded bg-success/20 border border-success/40 px-2 py-0.5 text-success">Answered</span>
+                    <span className="rounded bg-warning/20 border border-warning/40 px-2 py-0.5 text-warning-foreground">Marked</span>
+                    <span className="rounded bg-muted border px-2 py-0.5 text-muted-foreground">Not visited</span>
+                  </>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
+                {questions.map((qq, i) => {
+                  const a = answers[qq.id];
+                  let cls = "bg-muted border-border text-muted-foreground";
+                  if (showResultBadge) {
+                    if (!a?.option) cls = "bg-muted border-border text-muted-foreground";
+                    else if (a.option === qq.correct_option) cls = "bg-success text-success-foreground border-success";
+                    else cls = "bg-destructive text-white border-destructive";
+                  } else {
+                    if (a?.marked) cls = "bg-warning text-warning-foreground border-warning";
+                    else if (a?.option) cls = "bg-success text-success-foreground border-success";
+                    else if (a?.visited) cls = "bg-destructive/20 border-destructive text-destructive";
+                  }
+                  if (i === current) cls += " ring-2 ring-primary ring-offset-1";
+                  return (
+                    <button key={qq.id} onClick={() => { setCurrent(i); setShowGrid(false); }} className={`aspect-square rounded-md border text-sm font-semibold hover:opacity-80 transition-opacity ${cls}`}>
+                      {i + 1}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
