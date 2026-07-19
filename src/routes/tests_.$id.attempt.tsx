@@ -119,6 +119,24 @@ function Attempt() {
     </div>
   );
 
+  const isFuture = test.scheduled_at && new Date(test.scheduled_at) > new Date();
+  if (isFuture) return (
+    <div className="min-h-screen grid place-items-center bg-background p-6 text-center">
+      <div>
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-warning/10 text-warning mb-4">
+          <Clock className="h-6 w-6" />
+        </div>
+        <h2 className="text-xl font-bold">Test Scheduled</h2>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          This test is scheduled for <b>{new Date(test.scheduled_at).toLocaleString()}</b> and cannot be attempted yet.
+        </p>
+        <Link to="/tests" className="mt-6 inline-block rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">
+          Go Back
+        </Link>
+      </div>
+    </div>
+  );
+
   const q = questions[current];
   const ans = answers[q?.id ?? ""] || {};
   const showResultBadge = (submitted !== null) || reviewMode;
@@ -205,37 +223,39 @@ function Attempt() {
       </div>
 
       {/* Question card */}
-      <div className="px-4">
-        <div className="rounded-xl border bg-card p-3 shadow-sm overflow-auto resize-y" style={{ minHeight: '200px', height: '350px', maxHeight: '80vh' }}>
-          <img src={q.image_url} alt={`Question ${current + 1}`} className="max-w-full h-auto mx-auto rounded" />
+      <div className="px-2 md:px-4">
+        <div className="rounded-xl border bg-white dark:bg-card p-2 md:p-4 shadow-sm flex items-center justify-center overflow-hidden">
+          <img src={q.image_url} alt={`Question ${current + 1}`} className="max-w-full h-auto object-contain rounded-md" style={{ maxHeight: '65vh' }} />
         </div>
       </div>
 
       {/* Options */}
-      <div className="px-4 mt-5 space-y-3">
+      <div className="px-4 mt-6 grid grid-cols-2 gap-3 sm:gap-4">
         {(["A", "B", "C", "D"] as const).map((opt) => {
           const active = ans.option === opt;
           const isCorrect = q.correct_option === opt;
-          let cls = "border-border";
+          let cls = "border-border hover:border-primary/50 hover:bg-primary/5";
           if (showResultBadge) {
             if (isCorrect) cls = "border-success bg-success/10";
             else if (active) cls = "border-destructive bg-destructive/10";
-          } else if (active) cls = "border-primary bg-primary/10";
+            else cls = "border-border opacity-50";
+          } else if (active) cls = "border-primary bg-primary/10 ring-1 ring-primary";
+          
           return (
             <button
               key={opt}
               onClick={() => pickOption(opt)}
               disabled={showResultBadge}
-              className={`w-full rounded-xl border px-4 py-3 text-left inline-flex items-center gap-3 disabled:cursor-default transition-colors ${cls}`}
+              className={`w-full rounded-xl border px-4 py-4 sm:py-5 text-left flex items-center gap-3 disabled:cursor-default transition-all duration-200 ${cls}`}
             >
-              <span className={`grid h-6 w-6 place-items-center rounded-full border-2 transition-colors
+              <span className={`grid h-5 w-5 sm:h-6 sm:w-6 shrink-0 place-items-center rounded-full border-2 transition-colors
                 ${showResultBadge && isCorrect ? "border-success bg-success" : active ? "border-primary bg-primary" : "border-muted-foreground/30"}
               `}>
-                {(active || (showResultBadge && isCorrect)) && <span className="h-2.5 w-2.5 rounded-full bg-white" />}
+                {(active || (showResultBadge && isCorrect)) && <span className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-white" />}
               </span>
-              <span className="font-medium">{opt}</span>
+              <span className="font-medium text-base sm:text-lg">{opt}</span>
               {showResultBadge && isCorrect && (
-                <span className="ml-auto text-xs font-semibold text-success">Correct answer</span>
+                <span className="ml-auto text-[10px] sm:text-xs font-semibold text-success uppercase tracking-wider hidden sm:inline-block">Correct</span>
               )}
             </button>
           );
@@ -245,15 +265,15 @@ function Attempt() {
       {!reviewMode && !submitted && (
         <>
           <div className="px-4 mt-6 border-t pt-4">
-            <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={!!ans.marked} onChange={toggleMark} className="h-4 w-4 accent-primary" />
-              Mark for Review
+            <label className="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input type="checkbox" checked={!!ans.marked} onChange={toggleMark} className="h-4.5 w-4.5 accent-warning rounded" />
+              <span className="text-muted-foreground font-medium">Mark for Review</span>
             </label>
           </div>
-          <div className="px-4 mt-4 grid grid-cols-3 gap-2">
-            <button onClick={() => setCurrent((c) => Math.min(c + 1, questions.length - 1))} className="rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted">Skip</button>
-            <button onClick={() => setCurrent((c) => Math.max(c - 1, 0))} className="rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted">Previous</button>
-            <button onClick={saveNext} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Save &amp; Next</button>
+          <div className="px-4 mt-4 grid grid-cols-3 gap-3">
+            <button onClick={() => setCurrent((c) => Math.min(c + 1, questions.length - 1))} className="rounded-xl border px-3 py-3 text-sm font-medium hover:bg-muted transition-colors">Skip</button>
+            <button onClick={() => setCurrent((c) => Math.max(c - 1, 0))} disabled={current === 0} className="rounded-xl border px-3 py-3 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+            <button onClick={saveNext} className="rounded-xl bg-primary px-3 py-3 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-transform active:scale-95">Save &amp; Next</button>
           </div>
         </>
       )}

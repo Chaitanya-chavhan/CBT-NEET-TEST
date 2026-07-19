@@ -45,16 +45,21 @@ function SeriesDetail() {
             const qcount = t.questions?.[0]?.count ?? 0;
             const marks = qcount * Number(t.plus_marks || 0);
             const isPast = t.scheduled_at && new Date(t.scheduled_at) < new Date();
+            const isFuture = t.scheduled_at && new Date(t.scheduled_at) > new Date();
 
             return (
               <div key={t.id} className="rounded-2xl border bg-card shadow-sm p-5">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-lg font-bold">{t.title}</h3>
-                  {isPast && (
+                  {isFuture ? (
+                    <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning-foreground">
+                      Upcoming
+                    </span>
+                  ) : isPast ? (
                     <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive">
                       Missed
                     </span>
-                  )}
+                  ) : null}
                 </div>
 
                 {t.thumbnail_url && (
@@ -92,13 +97,19 @@ function SeriesDetail() {
                       <span>Anytime</span>
                     )}
                   </div>
-                  <Link
-                    to="/tests/$id/attempt"
-                    params={{ id: t.id }}
-                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
-                  >
-                    <PlayCircle className="h-4 w-4" /> Start
-                  </Link>
+                  {isFuture ? (
+                    <button disabled className="inline-flex items-center gap-1 rounded-lg bg-muted px-5 py-2 text-sm font-semibold text-muted-foreground cursor-not-allowed">
+                      Locked
+                    </button>
+                  ) : (
+                    <Link
+                      to="/tests/$id/attempt"
+                      params={{ id: t.id }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+                    >
+                      <PlayCircle className="h-4 w-4" /> Start
+                    </Link>
+                  )}
                 </div>
               </div>
             );
