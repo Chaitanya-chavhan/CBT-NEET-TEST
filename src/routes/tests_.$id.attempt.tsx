@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Clock, Grid3x3, Loader2, LogOut, FileText, CheckCircle2, XCircle, MinusCircle, X, BookOpen } from "lucide-react";
+import { ArrowLeft, Clock, Grid3x3, Loader2, LogOut, FileText, CheckCircle2, XCircle, MinusCircle, X, BookOpen, Download } from "lucide-react";
 import { getTest, getTestQuestions } from "@/lib/public-api";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/tests_/$id/attempt")({
@@ -36,6 +38,105 @@ function Attempt() {
 
   const questions = qsQ.data || [];
   const test = testQ.data;
+
+  const STORAGE_KEY = `test_attempt_${id}`;
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
+
+  // Restore state from local storage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.answers) setAnswers(parsed.answers);
+        if (parsed.current !== undefined) setCurrent(parsed.current);
+        if (parsed.secondsLeft !== undefined) setSecondsLeft(parsed.secondsLeft);
+        if (parsed.started !== undefined) setStarted(parsed.started);
+        if (parsed.startTs) startTsRef.current = parsed.startTs;
+      }
+    } catch (e) {
+      console.error("Failed to parse stored test progress", e);
+    }
+  }, [STORAGE_KEY]);
+
+  // Save state to local storage when it changes
+  useEffect(() => {
+    if (started && !submitted) {
+      const dataToSave = {
+        answers: answersRef.current,
+        current,
+        secondsLeft,
+        started,
+        startTs: startTsRef.current
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    }
+  }, [answers, current, secondsLeft, started, submitted, STORAGE_KEY]);
+
+  function getSectionName(index: number) {
+    if (index >= 0 && index <= 44) return "Physics";
+    if (index >= 45 && index <= 89) return "Chemistry";
+    if (index >= 90 && index <= 134) return "Botany";
+    if (index >= 135 && index <= 179) return "Zoology";
+    return "";
+  }
+  
+  const sections = useMemo(() => {
+    const s = new Set<string>();
+    questions.forEach((_, i) => {
+      const name = getSectionName(i);
+      if (name) s.add(name);
+    });
+    return Array.from(s);
+  }, [questions]);
+
+  function jumpToSection(sectionName: string) {
+    const firstIndex = questions.findIndex((_, i) => getSectionName(i) === sectionName);
+    if (firstIndex !== -1) {
+      setCurrent(firstIndex);
+    }
+  }
+
+  async function downloadPDF() {
+    if (!pdfContainerRef.current || !submitted) return;
+    setIsGeneratingPDF(true);
+    try {
+      pdfContainerRef.current.style.display = "block";
+      const canvas = await html2canvas(pdfContainerRef.current, {
+        scale: 2,
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+      pdf.save(`${test?.title || 'test'}_results.pdf`);
+    } catch (e) {
+      console.error("Failed to generate PDF", e);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPDF(false);
+      if (pdfContainerRef.current) pdfContainerRef.current.style.display = "none";
+    }
+  }
 
   useEffect(() => {
     if (test && !started && secondsLeft === 0) setSecondsLeft(test.duration_min * 60);
@@ -95,6 +196,7 @@ function Attempt() {
     const total = questions.length * plus;
     const timeTakenSec = Math.floor((Date.now() - startTsRef.current) / 1000);
     setSubmitted({ score, total, correct, wrong, unattempted, timeTakenSec });
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   const timeStr = useMemo(() => fmtTime(secondsLeft), [secondsLeft]);
@@ -205,6 +307,24 @@ function Attempt() {
           >
             Back to Result
           </button>
+        </div>
+      )}
+
+      {/* Sections Tab Bar */}
+      {!reviewMode && sections.length > 0 && (
+        <div className="px-4 py-2 border-b flex overflow-x-auto gap-2 no-scrollbar mb-2">
+          {sections.map(sec => {
+            const isActive = getSectionName(current) === sec;
+            return (
+              <button
+                key={sec}
+                onClick={() => jumpToSection(sec)}
+                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+              >
+                {sec}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -357,26 +477,56 @@ function Attempt() {
                 )}
               </div>
               
-              <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
-                {questions.map((qq, i) => {
-                  const a = answers[qq.id];
-                  let cls = "bg-muted border-border text-muted-foreground";
-                  if (showResultBadge) {
-                    if (!a?.option) cls = "bg-muted border-border text-muted-foreground";
-                    else if (a.option === qq.correct_option) cls = "bg-success text-success-foreground border-success";
-                    else cls = "bg-destructive text-white border-destructive";
-                  } else {
-                    if (a?.marked) cls = "bg-warning text-warning-foreground border-warning";
-                    else if (a?.option) cls = "bg-success text-success-foreground border-success";
-                    else if (a?.visited) cls = "bg-destructive/20 border-destructive text-destructive";
-                  }
-                  if (i === current) cls += " ring-2 ring-primary ring-offset-1";
-                  return (
-                    <button key={qq.id} onClick={() => { setCurrent(i); setShowGrid(false); }} className={`aspect-square rounded-md border text-sm font-semibold hover:opacity-80 transition-opacity ${cls}`}>
-                      {i + 1}
-                    </button>
-                  );
-                })}
+              <div className="space-y-6">
+                {sections.length > 0 ? sections.map(sec => (
+                  <div key={sec}>
+                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">{sec}</h4>
+                    <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
+                      {questions.map((qq, i) => {
+                        if (getSectionName(i) !== sec) return null;
+                        const a = answers[qq.id];
+                        let cls = "bg-muted border-border text-muted-foreground";
+                        if (showResultBadge) {
+                          if (!a?.option) cls = "bg-muted border-border text-muted-foreground";
+                          else if (a.option === qq.correct_option) cls = "bg-success text-success-foreground border-success";
+                          else cls = "bg-destructive text-white border-destructive";
+                        } else {
+                          if (a?.marked) cls = "bg-warning text-warning-foreground border-warning";
+                          else if (a?.option) cls = "bg-success text-success-foreground border-success";
+                          else if (a?.visited) cls = "bg-destructive/20 border-destructive text-destructive";
+                        }
+                        if (i === current) cls += " ring-2 ring-primary ring-offset-1";
+                        return (
+                          <button key={qq.id} onClick={() => { setCurrent(i); setShowGrid(false); }} className={`aspect-square rounded-md border text-sm font-semibold hover:opacity-80 transition-opacity ${cls}`}>
+                            {i + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
+                    {questions.map((qq, i) => {
+                      const a = answers[qq.id];
+                      let cls = "bg-muted border-border text-muted-foreground";
+                      if (showResultBadge) {
+                        if (!a?.option) cls = "bg-muted border-border text-muted-foreground";
+                        else if (a.option === qq.correct_option) cls = "bg-success text-success-foreground border-success";
+                        else cls = "bg-destructive text-white border-destructive";
+                      } else {
+                        if (a?.marked) cls = "bg-warning text-warning-foreground border-warning";
+                        else if (a?.option) cls = "bg-success text-success-foreground border-success";
+                        else if (a?.visited) cls = "bg-destructive/20 border-destructive text-destructive";
+                      }
+                      if (i === current) cls += " ring-2 ring-primary ring-offset-1";
+                      return (
+                        <button key={qq.id} onClick={() => { setCurrent(i); setShowGrid(false); }} className={`aspect-square rounded-md border text-sm font-semibold hover:opacity-80 transition-opacity ${cls}`}>
+                          {i + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -437,21 +587,57 @@ function Attempt() {
             <div className="mt-5 grid grid-cols-3 gap-2">
               <button
                 onClick={() => { setReviewMode(true); setCurrent(0); }}
-                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground inline-flex items-center justify-center gap-1"
+                className="col-span-3 rounded-lg border px-4 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2 hover:bg-muted"
               >
                 <BookOpen className="h-4 w-4" /> Solutions
               </button>
               <button
+                onClick={downloadPDF}
+                disabled={isGeneratingPDF}
+                className="col-span-3 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground inline-flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isGeneratingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Download Full Report (PDF)
+              </button>
+              <button
                 onClick={() => { setSubmitted(null); setAnswers({}); setStarted(false); setSecondsLeft(test.duration_min * 60); }}
-                className="rounded-lg border bg-accent/50 px-4 py-2.5 text-center text-sm font-semibold hover:bg-accent"
+                className="col-span-1 rounded-lg border bg-accent/50 px-4 py-2.5 text-center text-sm font-semibold hover:bg-accent"
               >
                 Re-attempt
               </button>
-              <Link to="/tests" className="rounded-lg border px-4 py-2.5 text-center text-sm font-semibold hover:bg-muted">Close</Link>
+              <Link to="/tests" className="col-span-2 rounded-lg border px-4 py-2.5 text-center text-sm font-semibold hover:bg-muted">Close</Link>
             </div>
           </div>
         </div>
       )}
+
+      {/* Hidden PDF Container */}
+      <div ref={pdfContainerRef} style={{ display: 'none', background: 'white', color: 'black', padding: '40px', width: '800px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '10px' }}>{test?.title} - Final Report</h1>
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', fontSize: '18px', fontWeight: 'bold' }}>
+          <div>Score: {submitted?.score?.toFixed(2)} / {submitted?.total}</div>
+          <div style={{ color: '#16a34a' }}>Correct: {submitted?.correct}</div>
+          <div style={{ color: '#dc2626' }}>Wrong: {submitted?.wrong}</div>
+        </div>
+        <hr style={{ marginBottom: '30px' }} />
+        {questions.map((qq, i) => {
+          const a = answers[qq.id];
+          const isCorrect = a?.option === qq.correct_option;
+          const section = getSectionName(i);
+          return (
+            <div key={qq.id} style={{ marginBottom: '40px', pageBreakInside: 'avoid' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '10px', fontSize: '18px' }}>
+                Question {i + 1} {section ? <span style={{ color: '#6b7280', fontSize: '14px' }}>[{section}]</span> : ''}
+              </div>
+              <img src={qq.image_url} style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }} alt={`Q${i+1}`} crossOrigin="anonymous" />
+              <div style={{ marginTop: '15px', padding: '15px', borderRadius: '8px', backgroundColor: isCorrect ? '#dcfce7' : (a?.option ? '#fee2e2' : '#f3f4f6') }}>
+                <div style={{ marginBottom: '5px' }}><strong>Your Answer:</strong> {a?.option || 'Not Attempted'}</div>
+                <div><strong>Correct Answer:</strong> {qq.correct_option}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Leave Confirm Modal */}
       {showLeaveConfirm && (
